@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Товар - SneakersShop</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="/" class="logo">👟 SneakersShop</a>
+                </div>
+                <div class="nav-menu">
+                    <a href="/" class="nav-link">Главная</a>
+                    <a href="/catalog" class="nav-link">Каталог</a>
+                    <a href="/cart" class="nav-link cart-link">Корзина <span id="cartCount" class="cart-count">0</span></a>
+                    <a href="/profile" class="nav-link" id="profileLink" style="display: none;">Личный кабинет</a>
+                    <a href="#" class="nav-link" id="logoutBtn" style="display: none;">Выйти</a>
+                    <a href="#" class="nav-link" id="loginBtn">Войти</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="product-detail" id="productDetail">
+                <!-- Product details will be loaded dynamically -->
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>SneakersShop</h3>
+                    <p>Интернет-магазин кроссовок №1</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Контакты</h4>
+                    <p>📞 +7 (999) 123-45-67</p>
+                    <p>✉️ info@sneakersshop.ru</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Режим работы</h4>
+                    <p>Пн-Пт: 10:00 - 20:00</p>
+                    <p>Сб-Вс: 11:00 - 18:00</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 SneakersShop. Все права защищены.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Size Selection Modal -->
+    <div id="sizeModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Выберите размер</h3>
+            <div class="size-selector" id="sizeSelector"></div>
+            <button id="confirmAddToCart" class="btn-primary">Добавить в корзину</button>
+        </div>
+    </div>
+
+    <script src="/js/main.js"></script>
+</body>
+</html>

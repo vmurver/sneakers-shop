@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SneakersShop - Интернет-магазин кроссовок</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="container">
+                <div class="nav-brand">
+                    <a href="/" class="logo">👟 SneakersShop</a>
+                </div>
+                <div class="nav-menu">
+                    <a href="/" class="nav-link active">Главная</a>
+                    <a href="/catalog" class="nav-link">Каталог</a>
+                    <a href="/cart" class="nav-link cart-link">Корзина <span id="cartCount" class="cart-count">0</span></a>
+                    <a href="/profile" class="nav-link profile-link" id="profileLink">Личный кабинет</a>
+                    <a href="#" class="nav-link" id="logoutBtn" style="display: none;">Выйти</a>
+                    <a href="#" class="nav-link" id="loginBtn">Войти</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="container">
+                <div class="hero-content">
+                    <h1>Найди свою идеальную пару</h1>
+                    <p>Коллекция лучших кроссовок от мировых брендов. Стиль, комфорт и качество в каждой модели.</p>
+                    <a href="/catalog" class="btn-primary">Перейти в каталог</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features -->
+        <section class="features">
+            <div class="container">
+                <h2 class="section-title">Почему выбирают нас</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🚚</div>
+                        <h3>Бесплатная доставка</h3>
+                        <p>При заказе от 5000 рублей</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔄</div>
+                        <h3>30 дней на возврат</h3>
+                        <p>Простая процедура возврата</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⭐</div>
+                        <h3>Оригинальная продукция</h3>
+                        <p>Только официальные поставщики</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">💳</div>
+                        <h3>Удобная оплата</h3>
+                        <p>Картой, наличными, рассрочка</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Popular Products -->
+        <section class="popular-products">
+            <div class="container">
+                <h2 class="section-title">Популярные модели</h2>
+                <div class="products-grid" id="popularProducts">
+                    <!-- Products will be loaded dynamically -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>SneakersShop</h3>
+                    <p>Интернет-магазин кроссовок №1</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Контакты</h4>
+                    <p>📞 +7 (999) 123-45-67</p>
+                    <p>✉️ info@sneakersshop.ru</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Режим работы</h4>
+                    <p>Пн-Пт: 10:00 - 20:00</p>
+                    <p>Сб-Вс: 11:00 - 18:00</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 SneakersShop. Все права защищены.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Вход в личный кабинет</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Пароль</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="btn-primary">Войти</button>
+            </form>
+            <p class="modal-footer">Нет аккаунта? <a href="#" id="showRegister">Зарегистрироваться</a></p>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div id="registerModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Регистрация</h2>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="regFullName">ФИО</label>
+                    <input type="text" id="regFullName" required>
+                </div>
+                <div class="form-group">
+                    <label for="regEmail">Email</label>
+                    <input type="email" id="regEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="regPhone">Телефон</label>
+                    <input type="tel" id="regPhone">
+                </div>
+                <div class="form-group">
+                    <label for="regAddress">Адрес</label>
+                    <input type="text" id="regAddress">
+                </div>
+                <div class="form-group">
+                    <label for="regBirthDate">Дата рождения</label>
+                    <input type="date" id="regBirthDate">
+                </div>
+                <div class="form-group">
+                    <label for="regPassword">Пароль</label>
+                    <input type="password" id="regPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="regConfirmPassword">Подтверждение пароля</label>
+                    <input type="password" id="regConfirmPassword" required>
+                </div>
+                <button type="submit" class="btn-primary">Зарегистрироваться</button>
+            </form>
+            <p class="modal-footer">Уже есть аккаунт? <a href="#" id="showLogin">Войти</a></p>
+        </div>
+    </div>
+
+    <script src="/js/main.js"></script>
+</body>
+</html>
