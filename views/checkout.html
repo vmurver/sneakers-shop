@@ -29,6 +29,7 @@
     <main>
         <div class="container">
             <h1>Оформление заказа</h1>
+            
             <div class="checkout-layout">
                 <div class="checkout-form">
                     <form id="checkoutForm">
@@ -36,14 +37,14 @@
                         
                         <div class="form-group">
                             <label for="deliveryAddress">Адрес доставки *</label>
-                            <textarea id="deliveryAddress" rows="3" required placeholder="Город, улица, дом, квартира"></textarea>
+                            <textarea id="deliveryAddress" rows="3" required placeholder="г. Москва, ул. Тверская, д. 1, кв. 10"></textarea>
+                            <small>Пример: г. Москва, ул. Тверская, д. 1, кв. 10</small>
                         </div>
                         
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="deliveryMethod">Способ доставки *</label>
-                                <select id="deliveryMethod" required>
-                                    <option value="">Выберите способ доставки</option>
+                                <select id="deliveryMethod" required onchange="updateDeliveryPrice()">
                                     <option value="courier">Курьером (300 ₽)</option>
                                     <option value="pickup">Самовывоз (бесплатно)</option>
                                     <option value="post">Почта России (200 ₽)</option>
@@ -53,7 +54,6 @@
                             <div class="form-group">
                                 <label for="paymentMethod">Способ оплаты *</label>
                                 <select id="paymentMethod" required>
-                                    <option value="">Выберите способ оплаты</option>
                                     <option value="card">Банковская карта онлайн</option>
                                     <option value="cash">Наличными при получении</option>
                                     <option value="sbp">СБП (Система быстрых платежей)</option>
@@ -67,18 +67,26 @@
                             </label>
                         </div>
                         
-                        <button type="submit" class="btn-primary">Подтвердить заказ</button>
+                        <button type="submit" id="checkoutSubmit" class="btn-primary">Подтвердить заказ</button>
                     </form>
                 </div>
                 
                 <div class="order-summary">
                     <h3>Ваш заказ</h3>
                     <div id="checkoutItems">
-                        <!-- Order items will be loaded dynamically -->
+                        <p>Загрузка...</p>
                     </div>
+                    
+                    <div class="delivery-cost">
+                        <div class="summary-row">
+                            <span>Доставка:</span>
+                            <span id="deliveryCost">0 ₽</span>
+                        </div>
+                    </div>
+                    
                     <div class="order-total">
                         <strong>Итого к оплате:</strong>
-                        <strong id="checkoutTotal">0 ₽</strong>
+                        <strong id="checkoutTotal" style="color: #e67e22;">0 ₽</strong>
                     </div>
                 </div>
             </div>
@@ -97,106 +105,42 @@
                     <p>📞 +7 (999) 123-45-67</p>
                     <p>✉️ info@sneakersshop.ru</p>
                 </div>
-                <div class="footer-section">
-                    <h4>Режим работы</h4>
-                    <p>Пн-Пт: 10:00 - 20:00</p>
-                    <p>Сб-Вс: 11:00 - 18:00</p>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2024 SneakersShop. Все права защищены.</p>
             </div>
         </div>
     </footer>
 
-    <!-- Login Modal -->
-<div id="loginModal" class="modal">
-    <div class="modal-content">
-        <span class="close">&times;</span>
-        <h2>Вход в личный кабинет</h2>
-        <form id="loginForm">
-            <div class="form-group">
-                <label for="loginEmail">Email</label>
-                <input type="email" id="loginEmail" required>
-            </div>
-            <div class="form-group">
-                <label for="loginPassword">Пароль</label>
-                <input type="password" id="loginPassword" required>
-            </div>
-            <button type="submit" class="btn-primary">Войти</button>
-        </form>
-        <p class="modal-footer">Нет аккаунта? <a href="#" id="showRegister">Зарегистрироваться</a></p>
-    </div>
-</div>
-
-<!-- Register Modal -->
-<div id="registerModal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <span class="close">&times;</span>
-        <h2>Регистрация</h2>
-        <form id="registerForm">
-            <div class="form-group">
-                <label for="regFullName">ФИО *</label>
-                <input type="text" id="regFullName" required>
-            </div>
-            <div class="form-group">
-                <label for="regEmail">Email *</label>
-                <input type="email" id="regEmail" required>
-            </div>
-            <div class="form-group">
-                <label for="regPhone">Телефон</label>
-                <input type="tel" id="regPhone">
-            </div>
-            <div class="form-group">
-                <label for="regAddress">Адрес</label>
-                <input type="text" id="regAddress">
-            </div>
-            <div class="form-group">
-                <label for="regBirthDate">Дата рождения</label>
-                <input type="date" id="regBirthDate">
-            </div>
-            <div class="form-group">
-                <label for="regPassword">Пароль *</label>
-                <input type="password" id="regPassword" required>
-            </div>
-            <div class="form-group">
-                <label for="regConfirmPassword">Подтверждение пароля *</label>
-                <input type="password" id="regConfirmPassword" required>
-            </div>
-            <button type="submit" class="btn-primary">Зарегистрироваться</button>
-        </form>
-        <p class="modal-footer">Уже есть аккаунт? <a href="#" id="showLogin">Войти</a></p>
-    </div>
-</div>
-    <!-- Поле ввода адреса с автодополнением -->
-<div class="form-group">
-    <label for="deliveryAddress">Адрес доставки *</label>
-    <input type="text" id="deliveryAddress" list="citySuggestions" required 
-           placeholder="Начните вводить город (например: г. Москва, ул. Тверская, д. 1, кв. 10)">
-    <datalist id="citySuggestions">
-        <option value="г. Москва">
-        <option value="г. Санкт-Петербург">
-        <option value="г. Новосибирск">
-        <option value="г. Екатеринбург">
-        <option value="г. Казань">
-        <option value="г. Нижний Новгород">
-        <option value="г. Челябинск">
-        <option value="г. Самара">
-        <option value="г. Омск">
-        <option value="г. Ростов-на-Дону">
-        <option value="г. Уфа">
-        <option value="г. Красноярск">
-        <option value="г. Пермь">
-        <option value="г. Воронеж">
-        <option value="г. Волгоград">
-        <option value="г. Краснодар">
-        <option value="г. Саратов">
-        <option value="г. Тюмень">
-        <option value="г. Тольятти">
-        <option value="г. Ижевск">
-    </datalist>
-    <small>Пример: г. Москва, ул. Тверская, д. 1, кв. 10</small>
-</div>
     <script src="/js/main.js"></script>
+    <script>
+        let cartTotal = 0;
+        
+        function updateDeliveryPrice() {
+            const deliveryMethod = document.getElementById('deliveryMethod').value;
+            let deliveryPrice = 0;
+            
+            switch(deliveryMethod) {
+                case 'courier':
+                    deliveryPrice = 300;
+                    break;
+                case 'post':
+                    deliveryPrice = 200;
+                    break;
+                case 'pickup':
+                    deliveryPrice = 0;
+                    break;
+                default:
+                    deliveryPrice = 0;
+            }
+            
+            document.getElementById('deliveryCost').textContent = deliveryPrice.toLocaleString() + ' ₽';
+            
+            const totalWithDelivery = cartTotal + deliveryPrice;
+            document.getElementById('checkoutTotal').textContent = totalWithDelivery.toLocaleString() + ' ₽';
+        }
+        
+        window.setCartTotal = function(total) {
+            cartTotal = total;
+            updateDeliveryPrice();
+        };
+    </script>
 </body>
 </html>

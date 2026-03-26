@@ -4,9 +4,13 @@
 let currentUser = null;
 let currentProductForCart = null;
 let allProducts = [];
+let salesChart = null;
+let ordersChart = null;
+let brandChart = null;
+let sizeChart = null;
 
 // ============================================
-// ИНИЦИАЛИЗАЦИЯ
+// ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Страница загружена');
@@ -15,10 +19,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadCartCount();
     setupAuthListeners();
     await loadPageContent();
-    setupAddressAutocomplete(); // Добавляем автодополнение адреса
+    setupAddressAutocomplete();
 });
 
-// Загрузка контента страницы
+// Загрузка контента в зависимости от текущей страницы
 async function loadPageContent() {
     const path = window.location.pathname;
     
@@ -48,7 +52,6 @@ function setupAddressAutocomplete() {
     const addressInput = document.getElementById('deliveryAddress');
     if (!addressInput) return;
     
-    // Список городов России для автодополнения
     const cities = [
         'г. Москва', 'г. Санкт-Петербург', 'г. Новосибирск', 'г. Екатеринбург', 
         'г. Казань', 'г. Нижний Новгород', 'г. Челябинск', 'г. Самара', 
@@ -57,7 +60,6 @@ function setupAddressAutocomplete() {
         'г. Саратов', 'г. Тюмень', 'г. Тольятти', 'г. Ижевск', 'г. Барнаул'
     ];
     
-    // Создаем datalist для автодополнения
     let datalist = document.getElementById('citySuggestions');
     if (!datalist) {
         datalist = document.createElement('datalist');
@@ -65,33 +67,17 @@ function setupAddressAutocomplete() {
         document.body.appendChild(datalist);
     }
     
-    // Заполняем города
     cities.forEach(city => {
         const option = document.createElement('option');
         option.value = city;
         datalist.appendChild(option);
     });
     
-    // Добавляем атрибут list к полю ввода
     addressInput.setAttribute('list', 'citySuggestions');
-    
-    // Добавляем обработчик для форматирования адреса
-    addressInput.addEventListener('blur', function() {
-        let address = this.value.trim();
-        if (address && !address.includes('ул.') && !address.includes('улица')) {
-            this.placeholder = 'Пример: г. Москва, ул. Тверская, д. 1, кв. 10';
-        }
-    });
-    
-    // Добавляем подсказку
-    addressInput.placeholder = 'Начните вводить город...';
 }
 
-// Форматирование адреса
 function formatAddress(address) {
     if (!address) return '';
-    
-    // Проверяем наличие города
     const hasCity = /г\.|город|поселок|деревня/i.test(address);
     if (!hasCity && address.length > 0) {
         return 'г. ' + address;
@@ -162,19 +148,16 @@ function setupAuthListeners() {
         };
     }
     
-    // Форма входа
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         loginForm.onsubmit = login;
     }
     
-    // Форма регистрации
     const registerForm = document.getElementById('registerForm');
     if (registerForm) {
         registerForm.onsubmit = register;
     }
     
-    // Закрытие модальных окон
     document.querySelectorAll('.close').forEach(btn => {
         btn.onclick = () => {
             document.getElementById('loginModal').style.display = 'none';
@@ -183,7 +166,6 @@ function setupAuthListeners() {
         };
     });
     
-    // Переключение между модальными окнами
     const showRegister = document.getElementById('showRegister');
     const showLogin = document.getElementById('showLogin');
     
@@ -203,7 +185,6 @@ function setupAuthListeners() {
         };
     }
     
-    // Закрытие по клику вне окна
     window.onclick = (e) => {
         if (e.target === document.getElementById('loginModal')) {
             document.getElementById('loginModal').style.display = 'none';
@@ -221,8 +202,10 @@ function showLoginModal() {
     const modal = document.getElementById('loginModal');
     if (modal) {
         modal.style.display = 'block';
-        document.getElementById('loginEmail').value = '';
-        document.getElementById('loginPassword').value = '';
+        const emailInput = document.getElementById('loginEmail');
+        const passwordInput = document.getElementById('loginPassword');
+        if (emailInput) emailInput.value = '';
+        if (passwordInput) passwordInput.value = '';
     }
 }
 
@@ -262,7 +245,6 @@ async function login(e) {
     }
 }
 
-// Регистрация с проверкой данных
 async function register(e) {
     e.preventDefault();
     
@@ -274,10 +256,8 @@ async function register(e) {
     const password = document.getElementById('regPassword').value;
     const confirmPassword = document.getElementById('regConfirmPassword').value;
     
-    // Форматируем адрес
     address = formatAddress(address);
     
-    // Проверка ФИО
     if (!fullName) {
         alert('Введите ФИО');
         return;
@@ -287,18 +267,16 @@ async function register(e) {
         return;
     }
     
-    // Проверка email
     if (!email) {
         alert('Введите email');
         return;
     }
     const emailRegex = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
     if (!emailRegex.test(email)) {
-        alert('Введите корректный email (например: name@domain.com)');
+        alert('Введите корректный email');
         return;
     }
     
-    // Проверка телефона
     if (phone) {
         const phoneRegex = /^[\+\d\s\-\(\)]{10,}$/;
         if (!phoneRegex.test(phone)) {
@@ -307,15 +285,11 @@ async function register(e) {
         }
     }
     
-    // Проверка адреса
-    if (address) {
-        if (address.length < 10) {
-            alert('Укажите полный адрес (город, улица, дом)');
-            return;
-        }
+    if (address && address.length < 10) {
+        alert('Укажите полный адрес (город, улица, дом)');
+        return;
     }
     
-    // Проверка пароля
     if (!password) {
         alert('Введите пароль');
         return;
@@ -391,7 +365,6 @@ async function addToCart(productId, quantity, size) {
     }
 }
 
-// Глобальная функция для добавления в корзину (для кнопок)
 window.addToCartGlobal = async function(productId) {
     const modal = document.getElementById('sizeModal');
     const sizeSelector = document.getElementById('sizeSelector');
@@ -448,27 +421,32 @@ async function loadCart() {
         const summary = document.getElementById('cartSummary');
         if (summary) summary.style.display = 'block';
         
-        container.innerHTML = cart.map(item => `
-            <div class="cart-item" data-id="${item.id}">
-                <img src="${item.image_url || '/images/placeholder.jpg'}" class="cart-item-image" onerror="this.src='/images/placeholder.jpg'">
-                <div class="cart-item-info">
-                    <h4>${escapeHtml(item.name)}</h4>
-                    <p>Бренд: ${escapeHtml(item.brand)}</p>
-                    <p>Размер: ${item.size}</p>
+        let totalAmount = 0;
+        container.innerHTML = cart.map(item => {
+            const itemTotal = item.price * item.quantity;
+            totalAmount += itemTotal;
+            return `
+                <div class="cart-item" data-id="${item.id}">
+                    <img src="${item.image_url || '/images/placeholder.jpg'}" class="cart-item-image" onerror="this.src='/images/placeholder.jpg'">
+                    <div class="cart-item-info">
+                        <h4>${escapeHtml(item.name)}</h4>
+                        <p>Бренд: ${escapeHtml(item.brand)}</p>
+                        <p>Размер: ${item.size}</p>
+                    </div>
+                    <div class="cart-item-price">${item.price.toLocaleString()} ₽</div>
+                    <div class="cart-item-quantity">
+                        <button class="quantity-btn" onclick="updateCartItem('${item.id}', ${item.quantity - 1})">-</button>
+                        <span>${item.quantity}</span>
+                        <button class="quantity-btn" onclick="updateCartItem('${item.id}', ${item.quantity + 1})">+</button>
+                    </div>
+                    <div class="cart-item-total">${itemTotal.toLocaleString()} ₽</div>
+                    <div class="remove-item" onclick="removeCartItem('${item.id}')">🗑️</div>
                 </div>
-                <div class="cart-item-price">${item.price.toLocaleString()} ₽</div>
-                <div class="cart-item-quantity">
-                    <button class="quantity-btn" onclick="updateCartItem('${item.id}', ${item.quantity - 1})">-</button>
-                    <span>${item.quantity}</span>
-                    <button class="quantity-btn" onclick="updateCartItem('${item.id}', ${item.quantity + 1})">+</button>
-                </div>
-                <div class="cart-item-total">${(item.price * item.quantity).toLocaleString()} ₽</div>
-                <div class="remove-item" onclick="removeCartItem('${item.id}')">🗑️</div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
         
-        const totalEl = document.getElementById('cartTotal');
-        if (totalEl) totalEl.textContent = `${data.totalAmount.toLocaleString()} ₽`;
+        const cartTotal = document.getElementById('cartTotal');
+        if (cartTotal) cartTotal.textContent = `${totalAmount.toLocaleString()} ₽`;
         
     } catch (error) {
         console.error('Ошибка:', error);
@@ -483,13 +461,19 @@ async function updateCartItem(cartId, newQuantity) {
     }
     
     try {
-        await fetch(`/api/cart/${cartId}`, {
+        const response = await fetch(`/api/cart/${cartId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ quantity: newQuantity })
         });
-        await loadCart();
-        await loadCartCount();
+        
+        if (response.ok) {
+            await loadCart();
+            await loadCartCount();
+        } else {
+            const error = await response.json();
+            alert(error.error || 'Ошибка обновления');
+        }
     } catch (error) {
         console.error('Ошибка:', error);
     }
@@ -497,16 +481,18 @@ async function updateCartItem(cartId, newQuantity) {
 
 async function removeCartItem(cartId) {
     try {
-        await fetch(`/api/cart/${cartId}`, { method: 'DELETE' });
-        await loadCart();
-        await loadCartCount();
+        const response = await fetch(`/api/cart/${cartId}`, { method: 'DELETE' });
+        if (response.ok) {
+            await loadCart();
+            await loadCartCount();
+        }
     } catch (error) {
         console.error('Ошибка:', error);
     }
 }
 
 // ============================================
-// КАТАЛОГ С ФИЛЬТРАЦИЕЙ И СОРТИРОВКОЙ
+// КАТАЛОГ
 // ============================================
 async function loadCatalog() {
     const grid = document.getElementById('productsGrid');
@@ -562,19 +548,13 @@ function displayProducts(products) {
 
 function setupFiltersAndSort() {
     const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.oninput = () => filterAndSortProducts();
-    }
+    if (searchInput) searchInput.oninput = () => filterAndSortProducts();
     
     const brandFilter = document.getElementById('brandFilter');
-    if (brandFilter) {
-        brandFilter.onchange = () => filterAndSortProducts();
-    }
+    if (brandFilter) brandFilter.onchange = () => filterAndSortProducts();
     
     const categoryFilter = document.getElementById('categoryFilter');
-    if (categoryFilter) {
-        categoryFilter.onchange = () => filterAndSortProducts();
-    }
+    if (categoryFilter) categoryFilter.onchange = () => filterAndSortProducts();
     
     const minPrice = document.getElementById('minPrice');
     const maxPrice = document.getElementById('maxPrice');
@@ -586,33 +566,23 @@ function setupFiltersAndSort() {
     });
     
     const sortSelect = document.getElementById('sortSelect');
-    if (sortSelect) {
-        sortSelect.onchange = () => filterAndSortProducts();
-    }
+    if (sortSelect) sortSelect.onchange = () => filterAndSortProducts();
     
     const resetBtn = document.getElementById('resetFilters');
-    if (resetBtn) {
-        resetBtn.onclick = () => resetAllFilters();
-    }
+    if (resetBtn) resetBtn.onclick = () => resetAllFilters();
 }
 
 function filterAndSortProducts() {
     let filtered = [...allProducts];
     
     const search = document.getElementById('searchInput')?.value.toLowerCase() || '';
-    if (search) {
-        filtered = filtered.filter(p => p.name.toLowerCase().includes(search));
-    }
+    if (search) filtered = filtered.filter(p => p.name.toLowerCase().includes(search));
     
     const brand = document.getElementById('brandFilter')?.value;
-    if (brand && brand !== '') {
-        filtered = filtered.filter(p => p.brand === brand);
-    }
+    if (brand && brand !== '') filtered = filtered.filter(p => p.brand === brand);
     
     const category = document.getElementById('categoryFilter')?.value;
-    if (category && category !== '') {
-        filtered = filtered.filter(p => p.category === category);
-    }
+    if (category && category !== '') filtered = filtered.filter(p => p.category === category);
     
     const minPrice = parseFloat(document.getElementById('minPrice')?.value);
     const maxPrice = parseFloat(document.getElementById('maxPrice')?.value);
@@ -756,7 +726,7 @@ async function loadProductDetails() {
 }
 
 // ============================================
-// ОФОРМЛЕНИЕ ЗАКАЗА С ПРОВЕРКОЙ И АВТОРИЗАЦИЕЙ
+// ОФОРМЛЕНИЕ ЗАКАЗА
 // ============================================
 async function loadCheckout() {
     if (!currentUser) {
@@ -780,7 +750,7 @@ async function loadCheckout() {
             if (addressField) addressField.value = user.address;
         }
     } catch (error) {
-        console.error('Ошибка:', error);
+        console.error('Ошибка загрузки адреса:', error);
     }
     
     return true;
@@ -793,27 +763,46 @@ async function loadCheckoutCartItems() {
         const cart = data.items || [];
         
         const itemsDiv = document.getElementById('checkoutItems');
+        const checkoutTotal = document.getElementById('checkoutTotal');
+        const submitBtn = document.getElementById('checkoutSubmit');
+        
         if (itemsDiv) {
             if (cart.length === 0) {
-                itemsDiv.innerHTML = '<p>Корзина пуста. <a href="/catalog">Перейти в каталог</a></p>';
-                document.getElementById('checkoutSubmit').disabled = true;
+                itemsDiv.innerHTML = '<p>🛒 Корзина пуста. <a href="/catalog">Перейти в каталог</a></p>';
+                if (submitBtn) submitBtn.disabled = true;
+                if (checkoutTotal) checkoutTotal.textContent = '0 ₽';
+                window.setCartTotal && window.setCartTotal(0);
                 return;
             }
             
-            itemsDiv.innerHTML = cart.map(item => `
-                <div class="order-summary-item">
-                    <span>${escapeHtml(item.name)} x ${item.quantity} (${item.size} размер)</span>
-                    <span>${(item.price * item.quantity).toLocaleString()} ₽</span>
-                </div>
-            `).join('');
-            document.getElementById('checkoutSubmit').disabled = false;
+            let totalAmount = 0;
+            itemsDiv.innerHTML = cart.map(item => {
+                const itemTotal = item.price * item.quantity;
+                totalAmount += itemTotal;
+                return `
+                    <div class="order-summary-item">
+                        <span>${escapeHtml(item.name)} x ${item.quantity} (${item.size} размер)</span>
+                        <span>${itemTotal.toLocaleString()} ₽</span>
+                    </div>
+                `;
+            }).join('');
+            
+            // Передаем сумму в глобальную функцию для расчета доставки
+            if (window.setCartTotal) {
+                window.setCartTotal(totalAmount);
+            }
+            
+            if (submitBtn) {
+                submitBtn.disabled = false;
+            }
         }
         
-        const totalEl = document.getElementById('checkoutTotal');
-        if (totalEl) totalEl.textContent = `${data.totalAmount.toLocaleString()} ₽`;
-        
     } catch (error) {
-        console.error('Ошибка:', error);
+        console.error('Ошибка загрузки товаров:', error);
+        const itemsDiv = document.getElementById('checkoutItems');
+        if (itemsDiv) {
+            itemsDiv.innerHTML = '<p class="error">❌ Ошибка загрузки корзины</p>';
+        }
     }
 }
 
@@ -824,7 +813,21 @@ async function placeOrder(e) {
     const deliveryMethod = document.getElementById('deliveryMethod').value;
     const paymentMethod = document.getElementById('paymentMethod').value;
     
-    // Форматируем адрес
+    // Расчет стоимости доставки
+    let deliveryPrice = 0;
+    switch(deliveryMethod) {
+        case 'courier': deliveryPrice = 300; break;
+        case 'post': deliveryPrice = 200; break;
+        case 'pickup': deliveryPrice = 0; break;
+        default: deliveryPrice = 0;
+    }
+    
+    // Получаем сумму товаров из корзины
+    const cartResponse = await fetch('/api/cart');
+    const cartData = await cartResponse.json();
+    const cartTotal = cartData.totalAmount || 0;
+    const totalWithDelivery = cartTotal + deliveryPrice;
+    
     address = formatAddress(address);
     
     // Проверка адреса
@@ -837,17 +840,9 @@ async function placeOrder(e) {
         return;
     }
     
-    // Проверка наличия города
     const hasCity = /г\.|город|поселок|деревня|село|пгт/i.test(address);
     if (!hasCity) {
         alert('Укажите город в адресе (например: г. Москва, ул. Ленина, д. 1)');
-        return;
-    }
-    
-    // Проверка номера дома
-    const hasHouse = /\b(д\.|дом|д)\s*\d+|\b\d+\s*(кв|к\.)?/i.test(address);
-    if (!hasHouse) {
-        alert('Укажите номер дома в адресе');
         return;
     }
     
@@ -861,6 +856,12 @@ async function placeOrder(e) {
         return;
     }
     
+    const submitBtn = document.getElementById('checkoutSubmit');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Оформление...';
+    }
+    
     try {
         const response = await fetch('/api/orders', {
             method: 'POST',
@@ -868,7 +869,10 @@ async function placeOrder(e) {
             body: JSON.stringify({ 
                 deliveryAddress: address, 
                 deliveryMethod, 
-                paymentMethod 
+                paymentMethod,
+                deliveryPrice,
+                cartTotal,
+                totalWithDelivery
             })
         });
         
@@ -878,10 +882,18 @@ async function placeOrder(e) {
         } else {
             const error = await response.json();
             alert(error.error || 'Ошибка оформления заказа');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Подтвердить заказ';
+            }
         }
     } catch (error) {
         console.error('Ошибка:', error);
         alert('Ошибка при оформлении заказа');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Подтвердить заказ';
+        }
     }
 }
 
@@ -926,6 +938,10 @@ async function loadProfile() {
                 <div class="info-row">
                     <span class="info-label">Дата регистрации:</span>
                     <span>${new Date(user.registration_date).toLocaleDateString()}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Последний вход:</span>
+                    <span>${user.last_login ? new Date(user.last_login).toLocaleString() : 'Не зафиксирован'}</span>
                 </div>
             `;
         }
@@ -987,36 +1003,21 @@ async function loadOrders() {
         container.innerHTML = '<p class="error">Ошибка загрузки заказов</p>';
     }
 }
-// ============================================
-// СТАТИСТИКА ПРОДАЖ С ГРАФИКАМИ (ИСПРАВЛЕННАЯ)
-// ============================================
 
 // ============================================
-// СТАТИСТИКА ПРОДАЖ С ГРАФИКАМИ (ИСПРАВЛЕННАЯ)
+// СТАТИСТИКА ПРОДАЖ
 // ============================================
-
-let salesChart = null;
-let ordersChart = null;
-let categoryChart = null;
-let sizeChart = null;
-
 async function loadStatistics() {
     if (!currentUser) {
         window.location.href = '/';
         return;
     }
     
-    console.log('Загрузка страницы статистики...');
-    
     const periodSelect = document.getElementById('periodSelect');
     const refreshBtn = document.getElementById('refreshStats');
     
-    if (refreshBtn) {
-        refreshBtn.onclick = () => fetchStatistics();
-    }
-    if (periodSelect) {
-        periodSelect.onchange = () => fetchStatistics();
-    }
+    if (refreshBtn) refreshBtn.onclick = () => fetchStatistics();
+    if (periodSelect) periodSelect.onchange = () => fetchStatistics();
     
     await fetchStatistics();
 }
@@ -1024,121 +1025,56 @@ async function loadStatistics() {
 async function fetchStatistics() {
     const period = document.getElementById('periodSelect')?.value || 'month';
     
-    console.log('Запрос статистики за период:', period);
-    
     try {
         const response = await fetch(`/api/statistics/sales?period=${period}`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
         const stats = await response.json();
-        console.log('Получены данные статистики:', stats);
         
-        // Проверяем наличие данных
-        if (!stats) {
-            console.error('Нет данных от сервера');
-            showStatisticsError('Нет данных от сервера');
-            return;
-        }
+        updateKPIs(stats.totalStats);
         
-        // Обновляем ключевые показатели
-        updateKeyMetrics(stats.totalStats || {});
-        
-        // Обновляем графики
         if (stats.salesByDate && stats.salesByDate.length > 0) {
             updateSalesChart(stats.salesByDate);
             updateOrdersChart(stats.salesByDate);
-        } else {
-            console.log('Нет данных для графиков продаж');
-            showEmptyChartMessage('salesChart', 'Нет данных за выбранный период');
-            showEmptyChartMessage('ordersChart', 'Нет данных за выбранный период');
         }
         
-        if (stats.salesByCategory && stats.salesByCategory.length > 0) {
-            updateCategoryChart(stats.salesByCategory);
-        } else {
-            console.log('Нет данных для графика категорий');
-            showEmptyChartMessage('categoryChart', 'Нет данных по категориям');
+        if (stats.salesByBrand && stats.salesByBrand.length > 0) {
+            updateBrandChart(stats.salesByBrand);
         }
         
         if (stats.salesBySize && stats.salesBySize.length > 0) {
             updateSizeChart(stats.salesBySize);
-        } else {
-            console.log('Нет данных для графика размеров');
-            showEmptyChartMessage('sizeChart', 'Нет данных по размерам');
         }
         
-        // Обновляем таблицы
         updateTopProductsTable(stats.topProducts || []);
-        updateSalesByBrandTable(stats.salesByBrand || []);
         updateVisitStatsTable(stats.visitStats || []);
         
     } catch (error) {
-        console.error('Ошибка загрузки статистики:', error);
-        showStatisticsError(error.message);
+        console.error('Ошибка статистики:', error);
     }
 }
 
-function updateKeyMetrics(totalStats) {
-    console.log('Обновление ключевых показателей:', totalStats);
-    
-    // Безопасное получение значений с значениями по умолчанию
-    const totalRevenue = totalStats.total_revenue || 0;
-    const totalOrders = totalStats.total_orders || 0;
-    const totalCustomers = totalStats.total_customers || 0;
-    const avgOrderValue = totalStats.avg_order_value || 0;
-    const completedOrders = totalStats.completed_orders || 0;
-    
-    console.log('Показатели:', {
-        totalRevenue,
-        totalOrders,
-        totalCustomers,
-        avgOrderValue,
-        completedOrders
-    });
+function updateKPIs(totalStats) {
+    const totalRevenue = totalStats?.total_revenue || 0;
+    const totalOrders = totalStats?.total_orders || 0;
+    const totalCustomers = totalStats?.total_customers || 0;
+    const avgOrderValue = totalStats?.avg_order_value || 0;
     
     const totalRevenueEl = document.getElementById('totalRevenue');
     const totalOrdersEl = document.getElementById('totalOrders');
     const totalCustomersEl = document.getElementById('totalCustomers');
     const avgOrderValueEl = document.getElementById('avgOrderValue');
-    const completedOrdersEl = document.getElementById('completedOrders');
     
-    if (totalRevenueEl) totalRevenueEl.textContent = `${Math.round(totalRevenue).toLocaleString()} ₽`;
+    if (totalRevenueEl) totalRevenueEl.textContent = `${totalRevenue.toLocaleString()} ₽`;
     if (totalOrdersEl) totalOrdersEl.textContent = totalOrders;
     if (totalCustomersEl) totalCustomersEl.textContent = totalCustomers;
     if (avgOrderValueEl) avgOrderValueEl.textContent = `${Math.round(avgOrderValue).toLocaleString()} ₽`;
-    if (completedOrdersEl) completedOrdersEl.textContent = completedOrders;
-}
-
-function showEmptyChartMessage(chartId, message) {
-    const canvas = document.getElementById(chartId);
-    if (canvas && canvas.parentNode) {
-        const parent = canvas.parentNode;
-        const existingMsg = parent.querySelector('.empty-chart-message');
-        if (!existingMsg) {
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'empty-chart-message';
-            msgDiv.textContent = message;
-            msgDiv.style.textAlign = 'center';
-            msgDiv.style.padding = '50px';
-            msgDiv.style.color = '#999';
-            parent.appendChild(msgDiv);
-        }
-    }
 }
 
 function updateSalesChart(salesData) {
     const ctx = document.getElementById('salesChart')?.getContext('2d');
-    if (!ctx) {
-        console.log('Элемент salesChart не найден');
-        return;
-    }
+    if (!ctx) return;
     
     const dates = salesData.map(d => d.date);
     const revenues = salesData.map(d => parseFloat(d.total_sales) || 0);
-    const itemsSold = salesData.map(d => parseInt(d.items_sold) || 0);
     
     if (salesChart) salesChart.destroy();
     
@@ -1146,82 +1082,27 @@ function updateSalesChart(salesData) {
         type: 'line',
         data: {
             labels: dates,
-            datasets: [
-                {
-                    label: 'Выручка (₽)',
-                    data: revenues,
-                    borderColor: '#e67e22',
-                    backgroundColor: 'rgba(230, 126, 34, 0.1)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    yAxisID: 'y'
-                },
-                {
-                    label: 'Количество товаров',
-                    data: itemsSold,
-                    borderColor: '#3498db',
-                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4,
-                    yAxisID: 'y1'
-                }
-            ]
+            datasets: [{
+                label: 'Выручка (₽)',
+                data: revenues,
+                borderColor: '#e67e22',
+                backgroundColor: 'rgba(230, 126, 34, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
-            interaction: {
-                mode: 'index',
-                intersect: false
-            },
             plugins: {
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
-                            let label = context.dataset.label || '';
-                            let value = context.raw;
-                            if (context.dataset.label.includes('Выручка')) {
-                                return label + ': ' + value.toLocaleString() + ' ₽';
-                            }
-                            return label + ': ' + value + ' шт';
-                        }
-                    }
-                },
-                legend: {
-                    position: 'top'
-                }
-            },
-            scales: {
-                y: {
-                    title: {
-                        display: true,
-                        text: 'Выручка (₽)',
-                        color: '#e67e22'
-                    },
-                    ticks: {
-                        callback: function(value) {
-                            return value.toLocaleString() + ' ₽';
-                        }
-                    }
-                },
-                y1: {
-                    position: 'right',
-                    title: {
-                        display: true,
-                        text: 'Количество товаров (шт)',
-                        color: '#3498db'
-                    },
-                    grid: {
-                        drawOnChartArea: false
+                        label: (ctx) => `${ctx.raw.toLocaleString()} ₽`
                     }
                 }
             }
         }
     });
-    
-    console.log('График продаж обновлен');
 }
 
 function updateOrdersChart(salesData) {
@@ -1230,7 +1111,6 @@ function updateOrdersChart(salesData) {
     
     const dates = salesData.map(d => d.date);
     const orders = salesData.map(d => parseInt(d.orders_count) || 0);
-    const customers = salesData.map(d => parseInt(d.unique_customers) || 0);
     
     if (ordersChart) ordersChart.destroy();
     
@@ -1238,98 +1118,44 @@ function updateOrdersChart(salesData) {
         type: 'bar',
         data: {
             labels: dates,
-            datasets: [
-                {
-                    label: 'Количество заказов',
-                    data: orders,
-                    backgroundColor: 'rgba(46, 204, 113, 0.7)',
-                    borderColor: '#27ae60',
-                    borderWidth: 1,
-                    borderRadius: 5
-                },
-                {
-                    label: 'Уникальных клиентов',
-                    data: customers,
-                    backgroundColor: 'rgba(52, 152, 219, 0.7)',
-                    borderColor: '#2980b9',
-                    borderWidth: 1,
-                    borderRadius: 5
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    position: 'top'
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + context.raw;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    title: {
-                        display: true,
-                        text: 'Количество'
-                    },
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1
-                    }
-                }
-            }
-        }
-    });
-}
-
-function updateCategoryChart(categoriesData) {
-    const ctx = document.getElementById('categoryChart')?.getContext('2d');
-    if (!ctx) return;
-    
-    const categories = categoriesData.map(c => c.category || 'Другое');
-    const revenues = categoriesData.map(c => parseFloat(c.revenue) || 0);
-    
-    if (categoryChart) categoryChart.destroy();
-    
-    const colors = ['#e67e22', '#3498db', '#2ecc71', '#e74c3c', '#9b59b6', '#f1c40f', '#1abc9c', '#e84393', '#00cec9', '#fd79a8'];
-    
-    categoryChart = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: categories,
             datasets: [{
-                data: revenues,
-                backgroundColor: colors.slice(0, categories.length),
-                borderWidth: 0
+                label: 'Количество заказов',
+                data: orders,
+                backgroundColor: '#3498db',
+                borderRadius: 5
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+}
+
+function updateBrandChart(brandsData) {
+    const ctx = document.getElementById('brandChart')?.getContext('2d');
+    if (!ctx) return;
+    
+    const brands = brandsData.map(b => b.brand);
+    const revenues = brandsData.map(b => parseFloat(b.revenue) || 0);
+    
+    if (brandChart) brandChart.destroy();
+    
+    brandChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: brands,
+            datasets: [{
+                data: revenues,
+                backgroundColor: ['#e67e22', '#3498db', '#2ecc71', '#e74c3c', '#9b59b6', '#f1c40f', '#1abc9c']
+            }]
+        },
+        options: {
+            responsive: true,
             plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        font: {
-                            size: 11
-                        }
-                    }
-                },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                            return `${label}: ${value.toLocaleString()} ₽ (${percentage}%)`;
-                        }
+                        label: (ctx) => `${ctx.label}: ${ctx.raw.toLocaleString()} ₽`
                     }
                 }
             }
@@ -1353,42 +1179,13 @@ function updateSizeChart(sizesData) {
             datasets: [{
                 label: 'Продано пар',
                 data: quantities,
-                backgroundColor: 'rgba(155, 89, 182, 0.7)',
-                borderColor: '#8e44ad',
-                borderWidth: 1,
+                backgroundColor: '#9b59b6',
                 borderRadius: 5
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return `Продано: ${context.raw} пар`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    title: {
-                        display: true,
-                        text: 'Количество проданных пар'
-                    },
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1,
-                        callback: function(value) {
-                            return value + ' шт';
-                        }
-                    }
-                }
-            }
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
         }
     });
 }
@@ -1398,7 +1195,7 @@ function updateTopProductsTable(products) {
     if (!tableBody) return;
     
     if (!products || products.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">📭 Нет данных о продажах. Оформите хотя бы один заказ.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="6">📭 Нет данных о продажах</td></tr>';
         return;
     }
     
@@ -1409,28 +1206,7 @@ function updateTopProductsTable(products) {
             <td>${escapeHtml(p.brand)}</td>
             <td>${escapeHtml(p.category || '-')}</td>
             <td><strong>${p.total_sold || 0}</strong> шт</td>
-            <td>${p.orders_count || 0} зак.</td>
             <td><strong style="color: #e67e22;">${(p.revenue || 0).toLocaleString()} ₽</strong></td>
-        </tr>
-    `).join('');
-}
-
-function updateSalesByBrandTable(brands) {
-    const tableBody = document.getElementById('salesByBrandTable');
-    if (!tableBody) return;
-    
-    if (!brands || brands.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">📭 Нет данных о продажах по брендам</td></tr>';
-        return;
-    }
-    
-    tableBody.innerHTML = brands.map(b => `
-        <tr>
-            <td><strong>${escapeHtml(b.brand)}</strong></td>
-            <td>${b.total_sold || 0} шт</td>
-            <td>${b.orders_count || 0} зак.</td>
-            <td>${Math.round(b.avg_price || 0).toLocaleString()} ₽</td>
-            <td><strong style="color: #e67e22;">${(b.revenue || 0).toLocaleString()} ₽</strong></td>
         </tr>
     `).join('');
 }
@@ -1440,7 +1216,7 @@ function updateVisitStatsTable(visits) {
     if (!tableBody) return;
     
     if (!visits || visits.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">📭 Нет данных о посещениях</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="4">📭 Нет данных о посещениях</td></tr>';
         return;
     }
     
@@ -1454,35 +1230,9 @@ function updateVisitStatsTable(visits) {
     `).join('');
 }
 
-function showStatisticsError(errorMessage) {
-    console.error('Показ ошибки:', errorMessage);
-    
-    // Показываем сообщение об ошибке на странице
-    const containers = [
-        'topProductsTable',
-        'salesByBrandTable',
-        'visitStatsTable'
-    ];
-    
-    containers.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.innerHTML = `<tr><td colspan="7" style="text-align: center;">❌ Ошибка загрузки данных: ${errorMessage}</td></tr>`;
-        }
-    });
-    
-    // Сбрасываем показатели
-    const totalRevenueEl = document.getElementById('totalRevenue');
-    const totalOrdersEl = document.getElementById('totalOrders');
-    const totalCustomersEl = document.getElementById('totalCustomers');
-    const avgOrderValueEl = document.getElementById('avgOrderValue');
-    
-    if (totalRevenueEl) totalRevenueEl.textContent = '0 ₽';
-    if (totalOrdersEl) totalOrdersEl.textContent = '0';
-    if (totalCustomersEl) totalCustomersEl.textContent = '0';
-    if (avgOrderValueEl) avgOrderValueEl.textContent = '0 ₽';
-}
-
+// ============================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');

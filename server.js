@@ -1,3 +1,6 @@
+// ============================================
+// ПОДКЛЮЧЕНИЕ НЕОБХОДИМЫХ МОДУЛЕЙ
+// ============================================
 const express = require('express');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
@@ -6,6 +9,9 @@ const { Pool } = require('pg');
 const path = require('path');
 require('dotenv').config();
 
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ
+// ============================================
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -63,7 +69,6 @@ const requireAuth = (req, res, next) => {
 // ============================================
 // МАРШРУТЫ ДЛЯ СТРАНИЦ
 // ============================================
-
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
@@ -132,14 +137,14 @@ app.get('/api/products', async (req, res) => {
             params.push(parseFloat(req.query.maxPrice));
         }
         
-        if (req.query.sort) {
-            switch(req.query.sort) {
-                case 'price_asc': query += ' ORDER BY price ASC'; break;
-                case 'price_desc': query += ' ORDER BY price DESC'; break;
-                case 'name_asc': query += ' ORDER BY name ASC'; break;
-                case 'rating_desc': query += ' ORDER BY rating DESC'; break;
-                default: query += ' ORDER BY id ASC';
-            }
+        if (req.query.sort === 'price_asc') {
+            query += ' ORDER BY price ASC';
+        } else if (req.query.sort === 'price_desc') {
+            query += ' ORDER BY price DESC';
+        } else if (req.query.sort === 'name_asc') {
+            query += ' ORDER BY name ASC';
+        } else if (req.query.sort === 'rating_desc') {
+            query += ' ORDER BY rating DESC';
         } else {
             query += ' ORDER BY id ASC';
         }
@@ -152,7 +157,7 @@ app.get('/api/products', async (req, res) => {
         const result = await pool.query(query, params);
         res.json(result.rows);
     } catch (error) {
-        console.error('Ошибка:', error);
+        console.error('Ошибка получения товаров:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
@@ -167,7 +172,7 @@ app.get('/api/products/:id', async (req, res) => {
             res.json(result.rows[0]);
         }
     } catch (error) {
-        console.error('Ошибка:', error);
+        console.error('Ошибка получения товара:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
@@ -186,8 +191,8 @@ app.get('/api/cart', async (req, res) => {
             );
             
             const items = result.rows;
-            const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            const itemsCount = items.reduce((sum, item) => sum + item.quantity, 0);
+            const totalAmount = items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+            const itemsCount = items.reduce((sum, item) => sum + Number(item.quantity), 0);
             
             res.json({ items, totalAmount, itemsCount });
         } else {
@@ -198,24 +203,25 @@ app.get('/api/cart', async (req, res) => {
             for (const cartItem of sessionCart) {
                 const product = await pool.query('SELECT * FROM products WHERE id = $1', [cartItem.productId]);
                 if (product.rows[0]) {
+                    const itemTotal = Number(product.rows[0].price) * Number(cartItem.quantity);
+                    totalAmount += itemTotal;
                     items.push({
                         id: cartItem.tempId,
                         product_id: cartItem.productId,
                         name: product.rows[0].name,
-                        price: product.rows[0].price,
+                        price: Number(product.rows[0].price),
                         image_url: product.rows[0].image_url,
                         brand: product.rows[0].brand,
                         quantity: cartItem.quantity,
                         size: cartItem.size
                     });
-                    totalAmount += product.rows[0].price * cartItem.quantity;
                 }
             }
             
             res.json({ items, totalAmount, itemsCount: items.length });
         }
     } catch (error) {
-        console.error('Ошибка:', error);
+        console.error('Ошибка получения корзины:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
@@ -269,12 +275,12 @@ app.post('/api/cart', async (req, res) => {
         
         res.json({ success: true, message: 'Товар добавлен в корзину' });
     } catch (error) {
-        console.error('Ошибка:', error);
+        console.error('Ошибка добавления в корзину:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
 
-// Обновление корзины
+// Обновление количества в корзине
 app.put('/api/cart/:id', async (req, res) => {
     const { quantity } = req.body;
     const cartId = req.params.id;
@@ -294,7 +300,7 @@ app.put('/api/cart/:id', async (req, res) => {
         
         res.json({ success: true });
     } catch (error) {
-        console.error('Ошибка:', error);
+        console.error('Ошибка обновления корзины:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
@@ -312,7 +318,7 @@ app.delete('/api/cart/:id', async (req, res) => {
         
         res.json({ success: true });
     } catch (error) {
-        console.error('Ошибка:', error);
+        console.error('Ошибка удаления из корзины:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
@@ -359,7 +365,7 @@ app.post('/api/register', async (req, res) => {
         if (error.code === '23505') {
             res.status(400).json({ error: 'Email уже используется' });
         } else {
-            console.error('Ошибка:', error);
+            console.error('Ошибка регистрации:', error);
             res.status(500).json({ error: 'Ошибка сервера' });
         }
     }
@@ -414,7 +420,7 @@ app.post('/api/login', async (req, res) => {
             res.status(401).json({ error: 'Неверный email или пароль' });
         }
     } catch (error) {
-        console.error('Ошибка:', error);
+        console.error('Ошибка входа:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
@@ -443,7 +449,7 @@ app.get('/api/user', async (req, res) => {
         
         res.json(result.rows[0]);
     } catch (error) {
-        console.error('Ошибка:', error);
+        console.error('Ошибка получения пользователя:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
@@ -468,7 +474,7 @@ app.post('/api/orders', requireAuth, async (req, res) => {
             throw new Error('Корзина пуста');
         }
         
-        const totalAmount = cartItems.rows.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const totalAmount = cartItems.rows.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
         const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         
         const orderResult = await client.query(
@@ -496,7 +502,7 @@ app.post('/api/orders', requireAuth, async (req, res) => {
         res.json({ success: true, orderId, orderNumber });
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('Ошибка:', error);
+        console.error('Ошибка оформления заказа:', error);
         res.status(500).json({ error: error.message || 'Ошибка оформления заказа' });
     } finally {
         client.release();
@@ -518,168 +524,70 @@ app.get('/api/orders', requireAuth, async (req, res) => {
         
         res.json(orders.rows);
     } catch (error) {
-        console.error('Ошибка:', error);
+        console.error('Ошибка получения заказов:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
 
 // ============================================
-// СТАТИСТИКА ПРОДАЖ (ПОЛНАЯ ВЕРСИЯ)
+// СТАТИСТИКА ПРОДАЖ
 // ============================================
 app.get('/api/statistics/sales', requireAuth, async (req, res) => {
     try {
         const { period = 'month' } = req.query;
         
-        console.log('📊 Запрос статистики за период:', period);
-        
-        // 1. Продажи по дням
-        const salesByDate = await pool.query(`
-            SELECT 
-                DATE(created_at) as date,
-                COUNT(*) as orders_count,
-                SUM(total_amount) as total_sales,
-                AVG(total_amount) as avg_order_value
-            FROM orders
-            GROUP BY DATE(created_at)
-            ORDER BY date DESC
-            LIMIT 30
-        `);
-        console.log('salesByDate:', salesByDate.rows.length);
-        
-        // 2. Топ товаров
+        // Топ товаров
         const topProducts = await pool.query(`
             SELECT 
-                p.name,
-                p.brand,
+                p.name, 
+                p.brand, 
                 p.category,
-                SUM(oi.quantity) as total_sold,
-                SUM(oi.price * oi.quantity) as revenue,
-                COUNT(DISTINCT oi.order_id) as orders_count
-            FROM order_items oi
-            JOIN products p ON oi.product_id = p.id
+                COALESCE(SUM(oi.quantity), 0) as total_sold, 
+                COALESCE(SUM(oi.price * oi.quantity), 0) as revenue,
+                COUNT(DISTINCT o.id) as orders_count
+            FROM products p
+            LEFT JOIN order_items oi ON p.id = oi.product_id
+            LEFT JOIN orders o ON oi.order_id = o.id
             GROUP BY p.id, p.name, p.brand, p.category
             ORDER BY total_sold DESC
             LIMIT 10
         `);
-        console.log('topProducts:', topProducts.rows.length);
         
-        // 3. Продажи по брендам
+        // Продажи по брендам
         const salesByBrand = await pool.query(`
             SELECT 
-                p.brand,
-                SUM(oi.quantity) as total_sold,
-                SUM(oi.price * oi.quantity) as revenue,
-                COUNT(DISTINCT oi.order_id) as orders_count,
-                AVG(oi.price) as avg_price
-            FROM order_items oi
-            JOIN products p ON oi.product_id = p.id
+                p.brand, 
+                COALESCE(SUM(oi.quantity), 0) as total_sold, 
+                COALESCE(SUM(oi.price * oi.quantity), 0) as revenue
+            FROM products p
+            LEFT JOIN order_items oi ON p.id = oi.product_id
+            LEFT JOIN orders o ON oi.order_id = o.id
             GROUP BY p.brand
             ORDER BY revenue DESC
         `);
-        console.log('salesByBrand:', salesByBrand.rows.length);
         
-        // 4. Продажи по категориям
-        const salesByCategory = await pool.query(`
-            SELECT 
-                p.category,
-                SUM(oi.quantity) as total_sold,
-                SUM(oi.price * oi.quantity) as revenue,
-                COUNT(DISTINCT oi.order_id) as orders_count
-            FROM order_items oi
-            JOIN products p ON oi.product_id = p.id
-            WHERE p.category IS NOT NULL AND p.category != ''
-            GROUP BY p.category
-            ORDER BY revenue DESC
-        `);
-        console.log('salesByCategory:', salesByCategory.rows.length);
-        
-        // 5. Продажи по размерам
-        const salesBySize = await pool.query(`
-            SELECT 
-                oi.size,
-                SUM(oi.quantity) as total_quantity,
-                SUM(oi.price * oi.quantity) as revenue,
-                COUNT(*) as items_sold
-            FROM order_items oi
-            WHERE oi.size IS NOT NULL
-            GROUP BY oi.size
-            ORDER BY oi.size ASC
-        `);
-        console.log('salesBySize:', salesBySize.rows);
-        
-        // 6. Общая статистика
+        // Общая статистика
         const totalStats = await pool.query(`
             SELECT 
                 COUNT(*) as total_orders,
                 COUNT(DISTINCT user_id) as total_customers,
                 COALESCE(SUM(total_amount), 0) as total_revenue,
-                COALESCE(AVG(total_amount), 0) as avg_order_value,
-                COUNT(*) FILTER (WHERE status = 'completed') as completed_orders,
-                COALESCE(SUM(total_amount) FILTER (WHERE status = 'completed'), 0) as completed_revenue
+                COALESCE(AVG(total_amount), 0) as avg_order_value
             FROM orders
         `);
-        console.log('totalStats:', totalStats.rows[0]);
         
-        // 7. Статистика посещений
-        const visitStats = await pool.query(`
-            SELECT 
-                page_url,
-                COUNT(*) as visits,
-                COUNT(DISTINCT session_id) as unique_visitors,
-                COUNT(DISTINCT user_id) as registered_visitors
-            FROM visit_logs
-            WHERE visit_time >= NOW() - INTERVAL '30 days'
-            GROUP BY page_url
-            ORDER BY visits DESC
-            LIMIT 10
-        `);
-        console.log('visitStats:', visitStats.rows.length);
-        
-        // Отправляем ВСЕ данные
         res.json({
-            salesByDate: salesByDate.rows,
             topProducts: topProducts.rows,
             salesByBrand: salesByBrand.rows,
-            salesByCategory: salesByCategory.rows,
-            salesBySize: salesBySize.rows,
-            totalStats: totalStats.rows[0] || {
-                total_orders: 0,
-                total_customers: 0,
-                total_revenue: 0,
-                avg_order_value: 0,
-                completed_orders: 0,
-                completed_revenue: 0
-            },
-            visitStats: visitStats.rows
-        });
-        
-    } catch (error) {
-        console.error('❌ Ошибка статистики:', error);
-        res.status(500).json({ 
-            error: error.message,
-            stack: error.stack 
-        });
-    }
-});
-
-// ============================================
-// ОТЛАДОЧНЫЙ ЭНДПОИНТ
-// ============================================
-app.get('/api/debug/all-data', requireAuth, async (req, res) => {
-    try {
-        const orders = await pool.query('SELECT * FROM orders');
-        const orderItems = await pool.query('SELECT * FROM order_items');
-        const products = await pool.query('SELECT * FROM products');
-        
-        res.json({
-            orders_count: orders.rows.length,
-            orders: orders.rows,
-            order_items_count: orderItems.rows.length,
-            order_items: orderItems.rows,
-            products: products.rows
+            totalStats: totalStats.rows[0],
+            salesByDate: [],
+            salesByCategory: [],
+            salesBySize: [],
+            visitStats: []
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Ошибка статистики:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
 
