@@ -763,14 +763,13 @@ async function loadCheckoutCartItems() {
         const cart = data.items || [];
         
         const itemsDiv = document.getElementById('checkoutItems');
-        const checkoutTotal = document.getElementById('checkoutTotal');
         const submitBtn = document.getElementById('checkoutSubmit');
         
         if (itemsDiv) {
             if (cart.length === 0) {
                 itemsDiv.innerHTML = '<p>🛒 Корзина пуста. <a href="/catalog">Перейти в каталог</a></p>';
                 if (submitBtn) submitBtn.disabled = true;
-                if (checkoutTotal) checkoutTotal.textContent = '0 ₽';
+                if (window.setCartTotal) window.setCartTotal(0);
                 return;
             }
             
@@ -786,8 +785,9 @@ async function loadCheckoutCartItems() {
                 `;
             }).join('');
             
-            if (checkoutTotal) {
-                checkoutTotal.textContent = `${totalAmount.toLocaleString()} ₽`;
+            // Передаем сумму в глобальную функцию для расчета доставки
+            if (window.setCartTotal) {
+                window.setCartTotal(totalAmount);
             }
             
             if (submitBtn) {

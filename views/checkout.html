@@ -31,7 +31,6 @@
             <h1>Оформление заказа</h1>
             
             <div class="checkout-layout">
-                <!-- Форма оформления заказа -->
                 <div class="checkout-form">
                     <form id="checkoutForm">
                         <h3>Данные доставки</h3>
@@ -45,7 +44,7 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="deliveryMethod">Способ доставки *</label>
-                                <select id="deliveryMethod" required>
+                                <select id="deliveryMethod" required onchange="updateDeliveryPrice()">
                                     <option value="">Выберите способ доставки</option>
                                     <option value="courier">Курьером (300 ₽)</option>
                                     <option value="pickup">Самовывоз (бесплатно)</option>
@@ -74,13 +73,19 @@
                     </form>
                 </div>
                 
-                <!-- Краткое содержание заказа -->
                 <div class="order-summary">
                     <h3>Ваш заказ</h3>
                     <div id="checkoutItems">
-                        <!-- Товары загружаются динамически -->
                         <p>Загрузка...</p>
                     </div>
+                    
+                    <div class="delivery-cost">
+                        <div class="summary-row">
+                            <span>Доставка:</span>
+                            <span id="deliveryCost">0 ₽</span>
+                        </div>
+                    </div>
+                    
                     <div class="order-total">
                         <strong>Итого к оплате:</strong>
                         <strong id="checkoutTotal" style="color: #e67e22;">0 ₽</strong>
@@ -175,5 +180,43 @@
     </div>
 
     <script src="/js/main.js"></script>
+    <script>
+        let cartTotal = 0;
+        
+        function updateDeliveryPrice() {
+            const deliveryMethod = document.getElementById('deliveryMethod').value;
+            let deliveryPrice = 0;
+            
+            switch(deliveryMethod) {
+                case 'courier':
+                    deliveryPrice = 300;
+                    break;
+                case 'post':
+                    deliveryPrice = 200;
+                    break;
+                case 'pickup':
+                    deliveryPrice = 0;
+                    break;
+                default:
+                    deliveryPrice = 0;
+            }
+            
+            const deliveryCostSpan = document.getElementById('deliveryCost');
+            if (deliveryCostSpan) {
+                deliveryCostSpan.textContent = deliveryPrice.toLocaleString() + ' ₽';
+            }
+            
+            const totalWithDelivery = cartTotal + deliveryPrice;
+            const checkoutTotalSpan = document.getElementById('checkoutTotal');
+            if (checkoutTotalSpan) {
+                checkoutTotalSpan.textContent = totalWithDelivery.toLocaleString() + ' ₽';
+            }
+        }
+        
+        window.setCartTotal = function(total) {
+            cartTotal = total;
+            updateDeliveryPrice();
+        };
+    </script>
 </body>
 </html>
