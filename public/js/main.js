@@ -771,7 +771,6 @@ async function loadCheckoutCartItems() {
                 itemsDiv.innerHTML = '<p>🛒 Корзина пуста. <a href="/catalog">Перейти в каталог</a></p>';
                 if (submitBtn) submitBtn.disabled = true;
                 if (checkoutTotal) checkoutTotal.textContent = '0 ₽';
-                window.setCartTotal && window.setCartTotal(0);
                 return;
             }
             
@@ -787,9 +786,8 @@ async function loadCheckoutCartItems() {
                 `;
             }).join('');
             
-            // Передаем сумму в глобальную функцию для расчета доставки
-            if (window.setCartTotal) {
-                window.setCartTotal(totalAmount);
+            if (checkoutTotal) {
+                checkoutTotal.textContent = `${totalAmount.toLocaleString()} ₽`;
             }
             
             if (submitBtn) {
@@ -803,6 +801,8 @@ async function loadCheckoutCartItems() {
         if (itemsDiv) {
             itemsDiv.innerHTML = '<p class="error">❌ Ошибка загрузки корзины</p>';
         }
+        const submitBtn = document.getElementById('checkoutSubmit');
+        if (submitBtn) submitBtn.disabled = true;
     }
 }
 
@@ -813,24 +813,8 @@ async function placeOrder(e) {
     const deliveryMethod = document.getElementById('deliveryMethod').value;
     const paymentMethod = document.getElementById('paymentMethod').value;
     
-    // Расчет стоимости доставки
-    let deliveryPrice = 0;
-    switch(deliveryMethod) {
-        case 'courier': deliveryPrice = 300; break;
-        case 'post': deliveryPrice = 200; break;
-        case 'pickup': deliveryPrice = 0; break;
-        default: deliveryPrice = 0;
-    }
-    
-    // Получаем сумму товаров из корзины
-    const cartResponse = await fetch('/api/cart');
-    const cartData = await cartResponse.json();
-    const cartTotal = cartData.totalAmount || 0;
-    const totalWithDelivery = cartTotal + deliveryPrice;
-    
     address = formatAddress(address);
     
-    // Проверка адреса
     if (!address) {
         alert('Введите адрес доставки');
         return;
@@ -843,6 +827,12 @@ async function placeOrder(e) {
     const hasCity = /г\.|город|поселок|деревня|село|пгт/i.test(address);
     if (!hasCity) {
         alert('Укажите город в адресе (например: г. Москва, ул. Ленина, д. 1)');
+        return;
+    }
+    
+    const hasHouse = /\b(д\.|дом|д)\s*\d+|\b\d+\s*(кв|к\.)?/i.test(address);
+    if (!hasHouse) {
+        alert('Укажите номер дома в адресе');
         return;
     }
     
@@ -869,10 +859,7 @@ async function placeOrder(e) {
             body: JSON.stringify({ 
                 deliveryAddress: address, 
                 deliveryMethod, 
-                paymentMethod,
-                deliveryPrice,
-                cartTotal,
-                totalWithDelivery
+                paymentMethod 
             })
         });
         
