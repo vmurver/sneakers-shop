@@ -530,64 +530,174 @@ app.get('/api/orders', requireAuth, async (req, res) => {
 });
 
 // ============================================
-// СТАТИСТИКА ПРОДАЖ
+// СТАТИСТИКА ПРОДАЖ (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 // ============================================
 app.get('/api/statistics/sales', requireAuth, async (req, res) => {
     try {
         const { period = 'month' } = req.query;
         
-        // Топ товаров
+        console.log('📊 Запрос статистики за период:', period);
+        
+        // 1. Продажи по дням для графиков (исправленная версия)
+        const salesByDate = await pool.query(`
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(*) as orders_count,
+                COUNT(DISTINCT user_id) as unique_customers,
+                COALESCE(SUM(total_amount), 0) as total_sales,
+                COALESCE(AVG(total_amount), 0) as avg_order_value,
+                COALESCE((
+                    SELECT SUM(oi.quantity) 
+                    FROM order_items oi 
+                    WHERE oi.order_id = orders.id
+                ), 0) as items_sold
+            FROM orders
+            GROUP BY DATE(created_at), orders.id
+            ORDER BY date DESC
+            LIMIT 30
+        `);
+        
+        // Если нужно агрегировать по датам, используем другой запрос
+        const salesByDateAggregated = await pool.query(`
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(*) as orders_count,
+                COUNT(DISTINCT user_id) as unique_customers,
+                COALESCE(SUM(total_amount), 0) as total_sales,
+                COALESCE(AVG(total_amount), 0) as avg_order_value,
+                COALESCE(SUM(oi.quantity), 0) as items_sold
+            FROM orders o
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            GROUP BY DATE(created_at)
+            ORDER BY date DESC
+            LIMIT 30
+        `);
+        
+        console.log('salesByDate найдено:', salesByDateAggregated.rows.length);
+        
+        // 2. Топ товаров
         const topProducts = await pool.query(`
             SELECT 
-                p.name, 
-                p.brand, 
+                p.name,
+                p.brand,
                 p.category,
-                COALESCE(SUM(oi.quantity), 0) as total_sold, 
+                COALESCE(SUM(oi.quantity), 0) as total_sold,
                 COALESCE(SUM(oi.price * oi.quantity), 0) as revenue,
-                COUNT(DISTINCT o.id) as orders_count
+                COUNT(DISTINCT oi.order_id) as orders_count
             FROM products p
             LEFT JOIN order_items oi ON p.id = oi.product_id
-            LEFT JOIN orders o ON oi.order_id = o.id
             GROUP BY p.id, p.name, p.brand, p.category
             ORDER BY total_sold DESC
             LIMIT 10
         `);
         
-        // Продажи по брендам
+        console.log('topProducts найдено:', topProducts.rows.length);
+        
+        // 3. Продажи по брендам
         const salesByBrand = await pool.query(`
             SELECT 
-                p.brand, 
-                COALESCE(SUM(oi.quantity), 0) as total_sold, 
-                COALESCE(SUM(oi.price * oi.quantity), 0) as revenue
+                p.brand,
+                COALESCE(SUM(oi.quantity), 0) as total_sold,
+                COALESCE(SUM(oi.price * oi.quantity), 0) as revenue,
+                COUNT(DISTINCT oi.order_id) as orders_count,
+                COALESCE(AVG(oi.price), 0) as avg_price
             FROM products p
             LEFT JOIN order_items oi ON p.id = oi.product_id
-            LEFT JOIN orders o ON oi.order_id = o.id
             GROUP BY p.brand
             ORDER BY revenue DESC
         `);
         
-        // Общая статистика
+        console.log('salesByBrand найдено:', salesByBrand.rows.length);
+        
+        // 4. Продажи по категориям
+        const salesByCategory = await pool.query(`
+            SELECT 
+                p.category,
+                COALESCE(SUM(oi.quantity), 0) as total_sold,
+                COALESCE(SUM(oi.price * oi.quantity), 0) as revenue,
+                COUNT(DISTINCT oi.order_id) as orders_count
+            FROM products p
+            LEFT JOIN order_items oi ON p.id = oi.product_id
+            WHERE p.category IS NOT NULL AND p.category != ''
+            GROUP BY p.category
+            ORDER BY revenue DESC
+        `);
+        
+        console.log('salesByCategory найдено:', salesByCategory.rows.length);
+        
+        // 5. Статистика по размерам
+        const salesBySize = await pool.query(`
+            SELECT 
+                oi.size,
+                COUNT(*) as items_sold,
+                COALESCE(SUM(oi.quantity), 0) as total_quantity,
+                COALESCE(SUM(oi.price * oi.quantity), 0) as revenue
+            FROM order_items oi
+            WHERE oi.size IS NOT NULL
+            GROUP BY oi.size
+            ORDER BY oi.size ASC
+        `);
+        
+        console.log('salesBySize найдено:', salesBySize.rows);
+        
+        // 6. Общая статистика
         const totalStats = await pool.query(`
             SELECT 
                 COUNT(*) as total_orders,
                 COUNT(DISTINCT user_id) as total_customers,
                 COALESCE(SUM(total_amount), 0) as total_revenue,
-                COALESCE(AVG(total_amount), 0) as avg_order_value
+                COALESCE(AVG(total_amount), 0) as avg_order_value,
+                COUNT(*) FILTER (WHERE status = 'completed') as completed_orders,
+                COALESCE(SUM(total_amount) FILTER (WHERE status = 'completed'), 0) as completed_revenue
             FROM orders
         `);
         
+        console.log('totalStats:', totalStats.rows[0]);
+        
+        // 7. Статистика посещений (если есть таблица)
+        let visitStats = [];
+        try {
+            const visitResult = await pool.query(`
+                SELECT 
+                    page_url,
+                    COUNT(*) as visits,
+                    COUNT(DISTINCT session_id) as unique_visitors,
+                    COUNT(DISTINCT user_id) as registered_visitors
+                FROM visit_logs
+                WHERE visit_time >= NOW() - INTERVAL '30 days'
+                GROUP BY page_url
+                ORDER BY visits DESC
+                LIMIT 10
+            `);
+            visitStats = visitResult.rows;
+        } catch (err) {
+            console.log('Таблица visit_logs не существует или пуста');
+        }
+        
+        // Отправляем ВСЕ данные (используем агрегированные данные)
         res.json({
+            salesByDate: salesByDateAggregated.rows,
             topProducts: topProducts.rows,
             salesByBrand: salesByBrand.rows,
-            totalStats: totalStats.rows[0],
-            salesByDate: [],
-            salesByCategory: [],
-            salesBySize: [],
-            visitStats: []
+            salesByCategory: salesByCategory.rows,
+            salesBySize: salesBySize.rows,
+            totalStats: totalStats.rows[0] || {
+                total_orders: 0,
+                total_customers: 0,
+                total_revenue: 0,
+                avg_order_value: 0,
+                completed_orders: 0,
+                completed_revenue: 0
+            },
+            visitStats: visitStats
         });
+        
     } catch (error) {
-        console.error('Ошибка статистики:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
+        console.error('❌ Ошибка статистики:', error);
+        res.status(500).json({ 
+            error: error.message,
+            stack: error.stack 
+        });
     }
 });
 

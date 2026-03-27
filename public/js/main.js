@@ -1000,11 +1000,17 @@ async function loadStatistics() {
         return;
     }
     
+    console.log('Загрузка статистики...');
+    
     const periodSelect = document.getElementById('periodSelect');
     const refreshBtn = document.getElementById('refreshStats');
     
-    if (refreshBtn) refreshBtn.onclick = () => fetchStatistics();
-    if (periodSelect) periodSelect.onchange = () => fetchStatistics();
+    if (refreshBtn) {
+        refreshBtn.onclick = () => fetchStatistics();
+    }
+    if (periodSelect) {
+        periodSelect.onchange = () => fetchStatistics();
+    }
     
     await fetchStatistics();
 }
@@ -1016,28 +1022,45 @@ async function fetchStatistics() {
         const response = await fetch(`/api/statistics/sales?period=${period}`);
         const stats = await response.json();
         
+        console.log('Получены данные статистики:', stats);
+        
+        // Обновляем KPI
         updateKPIs(stats.totalStats);
         
+        // Обновляем графики
         if (stats.salesByDate && stats.salesByDate.length > 0) {
             updateSalesChart(stats.salesByDate);
             updateOrdersChart(stats.salesByDate);
+        } else {
+            console.log('Нет данных для графиков продаж');
+            showEmptyChartMessage('salesChart', 'Нет данных за выбранный период');
+            showEmptyChartMessage('ordersChart', 'Нет данных за выбранный период');
         }
         
         if (stats.salesByBrand && stats.salesByBrand.length > 0) {
             updateBrandChart(stats.salesByBrand);
+        } else {
+            console.log('Нет данных для графика брендов');
+            showEmptyChartMessage('brandChart', 'Нет данных по брендам');
         }
         
         if (stats.salesBySize && stats.salesBySize.length > 0) {
             updateSizeChart(stats.salesBySize);
+        } else {
+            console.log('Нет данных для графика размеров');
+            showEmptyChartMessage('sizeChart', 'Нет данных по размерам');
         }
         
+        // Обновляем таблицы
         updateTopProductsTable(stats.topProducts || []);
-        updateVisitStatsTable(stats.visitStats || []);
+        updateSalesByBrandTable(stats.salesByBrand || []);
         
     } catch (error) {
-        console.error('Ошибка статистики:', error);
+        console.error('Ошибка загрузки статистики:', error);
+        showStatisticsError(error.message);
     }
 }
+
 
 function updateKPIs(totalStats) {
     const totalRevenue = totalStats?.total_revenue || 0;
@@ -1056,12 +1079,38 @@ function updateKPIs(totalStats) {
     if (avgOrderValueEl) avgOrderValueEl.textContent = `${Math.round(avgOrderValue).toLocaleString()} ₽`;
 }
 
+function showEmptyChartMessage(chartId, message) {
+    const canvas = document.getElementById(chartId);
+    if (canvas && canvas.parentNode) {
+        const parent = canvas.parentNode;
+        let msgDiv = parent.querySelector('.empty-chart-message');
+        if (!msgDiv) {
+            msgDiv = document.createElement('div');
+            msgDiv.className = 'empty-chart-message';
+            msgDiv.textContent = message;
+            msgDiv.style.textAlign = 'center';
+            msgDiv.style.padding = '40px';
+            msgDiv.style.color = '#999';
+            parent.appendChild(msgDiv);
+        }
+    }
+}
+
 function updateSalesChart(salesData) {
     const ctx = document.getElementById('salesChart')?.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+        console.log('Элемент salesChart не найден');
+        return;
+    }
+    
+    // Удаляем сообщение о пустом графике если есть
+    const parent = document.getElementById('salesChart').parentNode;
+    const msgDiv = parent.querySelector('.empty-chart-message');
+    if (msgDiv) msgDiv.remove();
     
     const dates = salesData.map(d => d.date);
     const revenues = salesData.map(d => parseFloat(d.total_sales) || 0);
+    const itemsSold = salesData.map(d => parseInt(d.items_sold) || 0);
     
     if (salesChart) salesChart.destroy();
     
@@ -1069,35 +1118,92 @@ function updateSalesChart(salesData) {
         type: 'line',
         data: {
             labels: dates,
-            datasets: [{
-                label: 'Выручка (₽)',
-                data: revenues,
-                borderColor: '#e67e22',
-                backgroundColor: 'rgba(230, 126, 34, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4
-            }]
+            datasets: [
+                {
+                    label: 'Выручка (₽)',
+                    data: revenues,
+                    borderColor: '#e67e22',
+                    backgroundColor: 'rgba(230, 126, 34, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Количество товаров',
+                    data: itemsSold,
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    yAxisID: 'y1'
+                }
+            ]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
             plugins: {
                 tooltip: {
                     callbacks: {
-                        label: (ctx) => `${ctx.raw.toLocaleString()} ₽`
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            let value = context.raw;
+                            if (context.dataset.label.includes('Выручка')) {
+                                return label + ': ' + value.toLocaleString() + ' ₽';
+                            }
+                            return label + ': ' + value + ' шт';
+                        }
+                    }
+                },
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Выручка (₽)',
+                        color: '#e67e22'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString() + ' ₽';
+                        }
+                    }
+                },
+                y1: {
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Количество товаров (шт)',
+                        color: '#3498db'
+                    },
+                    grid: {
+                        drawOnChartArea: false
                     }
                 }
             }
         }
     });
+    
+    console.log('График продаж обновлен');
 }
+
 
 function updateOrdersChart(salesData) {
     const ctx = document.getElementById('ordersChart')?.getContext('2d');
     if (!ctx) return;
     
+    const parent = document.getElementById('ordersChart').parentNode;
+    const msgDiv = parent.querySelector('.empty-chart-message');
+    if (msgDiv) msgDiv.remove();
+    
     const dates = salesData.map(d => d.date);
     const orders = salesData.map(d => parseInt(d.orders_count) || 0);
+    const customers = salesData.map(d => parseInt(d.unique_customers) || 0);
     
     if (ordersChart) ordersChart.destroy();
     
@@ -1105,28 +1211,71 @@ function updateOrdersChart(salesData) {
         type: 'bar',
         data: {
             labels: dates,
-            datasets: [{
-                label: 'Количество заказов',
-                data: orders,
-                backgroundColor: '#3498db',
-                borderRadius: 5
-            }]
+            datasets: [
+                {
+                    label: 'Количество заказов',
+                    data: orders,
+                    backgroundColor: 'rgba(46, 204, 113, 0.7)',
+                    borderColor: '#27ae60',
+                    borderWidth: 1,
+                    borderRadius: 5
+                },
+                {
+                    label: 'Уникальных клиентов',
+                    data: customers,
+                    backgroundColor: 'rgba(52, 152, 219, 0.7)',
+                    borderColor: '#2980b9',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }
+            ]
         },
         options: {
             responsive: true,
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.raw;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Количество'
+                    },
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
         }
     });
 }
+
 
 function updateBrandChart(brandsData) {
     const ctx = document.getElementById('brandChart')?.getContext('2d');
     if (!ctx) return;
     
+    const parent = document.getElementById('brandChart').parentNode;
+    const msgDiv = parent.querySelector('.empty-chart-message');
+    if (msgDiv) msgDiv.remove();
+    
     const brands = brandsData.map(b => b.brand);
     const revenues = brandsData.map(b => parseFloat(b.revenue) || 0);
     
     if (brandChart) brandChart.destroy();
+    
+    const colors = ['#e67e22', '#3498db', '#2ecc71', '#e74c3c', '#9b59b6', '#f1c40f', '#1abc9c', '#e84393', '#00cec9', '#fd79a8'];
     
     brandChart = new Chart(ctx, {
         type: 'pie',
@@ -1134,15 +1283,29 @@ function updateBrandChart(brandsData) {
             labels: brands,
             datasets: [{
                 data: revenues,
-                backgroundColor: ['#e67e22', '#3498db', '#2ecc71', '#e74c3c', '#9b59b6', '#f1c40f', '#1abc9c']
+                backgroundColor: colors.slice(0, brands.length),
+                borderWidth: 0
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
             plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        font: { size: 11 }
+                    }
+                },
                 tooltip: {
                     callbacks: {
-                        label: (ctx) => `${ctx.label}: ${ctx.raw.toLocaleString()} ₽`
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${label}: ${value.toLocaleString()} ₽ (${percentage}%)`;
+                        }
                     }
                 }
             }
@@ -1153,6 +1316,10 @@ function updateBrandChart(brandsData) {
 function updateSizeChart(sizesData) {
     const ctx = document.getElementById('sizeChart')?.getContext('2d');
     if (!ctx) return;
+    
+    const parent = document.getElementById('sizeChart').parentNode;
+    const msgDiv = parent.querySelector('.empty-chart-message');
+    if (msgDiv) msgDiv.remove();
     
     const sizes = sizesData.map(s => `${s.size} размер`);
     const quantities = sizesData.map(s => parseInt(s.total_quantity) || 0);
@@ -1166,13 +1333,42 @@ function updateSizeChart(sizesData) {
             datasets: [{
                 label: 'Продано пар',
                 data: quantities,
-                backgroundColor: '#9b59b6',
+                backgroundColor: 'rgba(155, 89, 182, 0.7)',
+                borderColor: '#8e44ad',
+                borderWidth: 1,
                 borderRadius: 5
             }]
         },
         options: {
             responsive: true,
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Продано: ${context.raw} пар`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Количество проданных пар'
+                    },
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1,
+                        callback: function(value) {
+                            return value + ' шт';
+                        }
+                    }
+                }
+            }
         }
     });
 }
@@ -1182,7 +1378,7 @@ function updateTopProductsTable(products) {
     if (!tableBody) return;
     
     if (!products || products.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="6">📭 Нет данных о продажах</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">📭 Нет данных о продажах. Оформите хотя бы один заказ.</td></tr>';
         return;
     }
     
@@ -1191,11 +1387,48 @@ function updateTopProductsTable(products) {
             <td><strong>${index + 1}</strong></td>
             <td><strong>${escapeHtml(p.name)}</strong></td>
             <td>${escapeHtml(p.brand)}</td>
-            <td>${escapeHtml(p.category || '-')}</td>
             <td><strong>${p.total_sold || 0}</strong> шт</td>
             <td><strong style="color: #e67e22;">${(p.revenue || 0).toLocaleString()} ₽</strong></td>
         </tr>
     `).join('');
+}
+function updateSalesByBrandTable(brands) {
+    const tableBody = document.getElementById('salesByBrandTable');
+    if (!tableBody) return;
+    
+    if (!brands || brands.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center;">📭 Нет данных о продажах по брендам</td></tr>';
+        return;
+    }
+    
+    tableBody.innerHTML = brands.map(b => `
+        <tr>
+            <td><strong>${escapeHtml(b.brand)}</strong></td>
+            <td>${b.total_sold || 0} шт</td>
+            <td><strong style="color: #e67e22;">${(b.revenue || 0).toLocaleString()} ₽</strong></td>
+        </tr>
+    `).join('');
+}
+function showStatisticsError(errorMessage) {
+    console.error('Ошибка статистики:', errorMessage);
+    
+    const tables = ['topProductsTable', 'salesByBrandTable'];
+    tables.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.innerHTML = `<tr><td colspan="5" style="text-align: center;">❌ Ошибка загрузки данных: ${errorMessage}</td></tr>`;
+        }
+    });
+    
+    const totalRevenueEl = document.getElementById('totalRevenue');
+    const totalOrdersEl = document.getElementById('totalOrders');
+    const totalCustomersEl = document.getElementById('totalCustomers');
+    const avgOrderValueEl = document.getElementById('avgOrderValue');
+    
+    if (totalRevenueEl) totalRevenueEl.textContent = '0 ₽';
+    if (totalOrdersEl) totalOrdersEl.textContent = '0';
+    if (totalCustomersEl) totalCustomersEl.textContent = '0';
+    if (avgOrderValueEl) avgOrderValueEl.textContent = '0 ₽';
 }
 
 function updateVisitStatsTable(visits) {
